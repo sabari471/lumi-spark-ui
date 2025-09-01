@@ -23,15 +23,13 @@ const ChatHeader = ({ onNewChat, onToggleSidebar, onOpenSettings }: ChatHeaderPr
             </Button>
             
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow">
-                <Bot className="h-5 w-5 text-primary-foreground" />
-              </div>
+              
               <div className="hidden sm:block">
                 <h1 className="text-lg font-semibold bg-gradient-to-r from-primary-glow to-accent bg-clip-text text-transparent">
                   AI Assistant
                 </h1>
                 <p className="text-xs text-muted-foreground">
-                  Powered by advanced AI
+                  Powered For Material Estimation
                 </p>
               </div>
             </div>

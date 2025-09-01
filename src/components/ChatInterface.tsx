@@ -7,6 +7,70 @@ import ChatInput from "./ChatInput";
 import SettingsModal from "./SettingsModal";
 import { cn } from "@/lib/utils";
 
+// Enhanced Message component with word-by-word reveal
+const AnimatedMessage = ({ message }: { message: MessageData }) => {
+  const [displayedContent, setDisplayedContent] = useState('');
+  const [currentWordIndex, setCurrentWordIndex] = useState(0);
+  const words = message.content.split(' ');
+
+  useEffect(() => {
+    if (message.sender === 'bot') {
+      // Reset animation for new bot messages
+      setDisplayedContent('');
+      setCurrentWordIndex(0);
+      
+      const timer = setInterval(() => {
+        setCurrentWordIndex((prevIndex) => {
+          if (prevIndex < words.length) {
+            const nextIndex = prevIndex + 1;
+            setDisplayedContent(words.slice(0, nextIndex).join(' '));
+            return nextIndex;
+          } else {
+            clearInterval(timer);
+            return prevIndex;
+          }
+        });
+      }, 80); // Adjust speed here (lower = faster)
+
+      return () => clearInterval(timer);
+    } else {
+      // Show user messages immediately
+      setDisplayedContent(message.content);
+    }
+  }, [message.content, message.sender, words]);
+
+  return (
+    <div className={cn(
+      "flex w-full mb-4",
+      message.sender === "user" ? "justify-end" : "justify-start"
+    )}>
+      <div className={cn(
+        "max-w-[70%] rounded-lg px-4 py-3 shadow-sm",
+        message.sender === "user"
+          ? "bg-primary text-primary-foreground ml-4"
+          : "bg-muted mr-4"
+      )}>
+        <div className="whitespace-pre-wrap break-words">
+          {displayedContent}
+          {message.sender === 'bot' && currentWordIndex < words.length && (
+            <span className="inline-block w-2 h-5 bg-current ml-1 animate-pulse" />
+          )}
+        </div>
+        <div className={cn(
+          "text-xs mt-1 opacity-70",
+          message.sender === "user" ? "text-right" : "text-left"
+        )}>
+          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Gemini API configuration
+const GEMINI_API_KEY = "AIzaSyA4YvkmptCkW9evpZQQHVAK82vRwN_6Ykg";
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+
 const ChatInterface = () => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -14,6 +78,7 @@ const ChatInterface = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [conversationHistory, setConversationHistory] = useState<Array<{role: string, parts: [{text: string}]}>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto scroll to bottom
@@ -43,12 +108,14 @@ const ChatInterface = () => {
     setSessions(prev => [newSession, ...prev]);
     setCurrentSessionId(newSession.id);
     setMessages([]);
+    setConversationHistory([]);
   };
 
   const selectSession = (sessionId: string) => {
     setCurrentSessionId(sessionId);
-    // In a real app, you'd load messages for this session
+    // In a real app, you'd load messages and conversation history for this session
     setMessages([]);
+    setConversationHistory([]);
     setSidebarOpen(false);
   };
 
@@ -77,6 +144,7 @@ const ChatInterface = () => {
   const clearAllChats = () => {
     setSessions([]);
     setMessages([]);
+    setConversationHistory([]);
     setCurrentSessionId(null);
     createNewChat();
   };
@@ -97,6 +165,90 @@ const ChatInterface = () => {
     linkElement.setAttribute('href', dataUri);
     linkElement.setAttribute('download', exportFileDefaultName);
     linkElement.click();
+  };
+
+  // Call Gemini API
+  const callGeminiAPI = async (userMessage: string): Promise<string> => {
+    try {
+      // Build conversation history for context
+      const history = conversationHistory.slice(-10); // Keep last 10 exchanges for context
+      const contents = [
+        ...history,
+        {
+          role: "user",
+          parts: [{ text: userMessage }]
+        }
+      ];
+
+      const requestBody = {
+        contents: contents,
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 1024,
+        },
+        safetySettings: [
+          {
+            category: "HARM_CATEGORY_HARASSMENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_HATE_SPEECH",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          }
+        ]
+      };
+
+      const response = await fetch(GEMINI_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Gemini API Error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.candidates || data.candidates.length === 0) {
+        throw new Error('No response generated from Gemini API');
+      }
+
+      const botResponse = data.candidates[0].content.parts[0].text;
+      
+      // Update conversation history
+      setConversationHistory(prev => [
+        ...prev.slice(-10), // Keep only last 10 exchanges
+        { role: "user", parts: [{ text: userMessage }] },
+        { role: "model", parts: [{ text: botResponse }] }
+      ]);
+
+      return botResponse;
+    } catch (error) {
+      console.error('Error calling Gemini API:', error);
+      
+      // Fallback responses based on error type
+      if (error.message.includes('API')) {
+        return "I'm having trouble connecting to my AI service right now. Please check your internet connection and try again in a moment.";
+      } else if (error.message.includes('quota') || error.message.includes('limit')) {
+        return "I've reached my usage limit for now. Please try again later, or check your API quota.";
+      } else {
+        return "I apologize, but I encountered an unexpected error while processing your request. Please try rephrasing your question or try again.";
+      }
+    }
   };
 
   const sendMessage = async (content: string) => {
@@ -125,54 +277,53 @@ const ChatInterface = () => {
       );
     }
 
-    // Simulate bot typing
+    // Show typing indicator
     setIsTyping(true);
     
-    // Simulate API delay
-    setTimeout(() => {
-      const botMessage: MessageData = {
-        id: (Date.now() + 1).toString(),
-        content: getBotResponse(content),
-        sender: "bot",
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, botMessage]);
+    try {
+      // Call Gemini API
+      const botResponse = await callGeminiAPI(content);
+      
+      // Hide typing indicator before showing response
       setIsTyping(false);
+      
+      // Add a small delay before starting the word animation
+      setTimeout(() => {
+        const botMessage: MessageData = {
+          id: (Date.now() + 1).toString(),
+          content: botResponse,
+          sender: "bot",
+          timestamp: new Date()
+        };
 
-      // Update session last message
-      setSessions(prev =>
-        prev.map(s =>
-          s.id === currentSessionId
-            ? { ...s, lastMessage: botMessage.content, timestamp: new Date() }
-            : s
-        )
-      );
-    }, 1000 + Math.random() * 2000);
-  };
+        setMessages(prev => [...prev, botMessage]);
 
-  // Simple bot responses - replace with actual API call
-  const getBotResponse = (userMessage: string): string => {
-    const responses = [
-      "That's an interesting question! Let me think about that...",
-      "I understand what you're asking. Here's my perspective on that topic:",
-      "Great question! Based on what I know, I can tell you that...",
-      "I'd be happy to help you with that. From my understanding...",
-      "That's a thoughtful inquiry. Let me provide you with some insights:",
-    ];
+        // Update session last message
+        setSessions(prev =>
+          prev.map(s =>
+            s.id === currentSessionId
+              ? { ...s, lastMessage: botResponse.length > 50 ? botResponse.substring(0, 50) + "..." : botResponse, timestamp: new Date() }
+              : s
+          )
+        );
+      }, 300); // Small delay before animation starts
+      
+    } catch (error) {
+      console.error('Error in sendMessage:', error);
+      
+      setIsTyping(false);
+      
+      setTimeout(() => {
+        const errorMessage: MessageData = {
+          id: (Date.now() + 1).toString(),
+          content: "I apologize, but I'm having trouble processing your request right now. Please try again.",
+          sender: "bot",
+          timestamp: new Date()
+        };
 
-    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-    
-    // Add some relevant content based on the user's message
-    if (userMessage.toLowerCase().includes("hello") || userMessage.toLowerCase().includes("hi")) {
-      return "Hello! It's great to meet you. I'm your AI assistant, and I'm here to help with any questions or tasks you might have. What would you like to talk about today?";
+        setMessages(prev => [...prev, errorMessage]);
+      }, 300);
     }
-    
-    if (userMessage.toLowerCase().includes("help")) {
-      return "I'm here to help! I can assist you with a wide variety of tasks including answering questions, helping with analysis, creative writing, coding, math problems, and much more. What specific area would you like help with?";
-    }
-
-    return `${randomResponse} ${userMessage.length > 50 ? "You've shared quite a detailed message with me." : "Thank you for sharing that with me."} I'm designed to be helpful, harmless, and honest in all our conversations. Is there anything specific you'd like to explore further?`;
   };
 
   return (
@@ -211,17 +362,17 @@ const ChatInterface = () => {
                   </svg>
                 </div>
                 <h2 className="text-2xl font-bold bg-gradient-to-r from-primary-glow to-accent bg-clip-text text-transparent">
-                  Start a conversation
+                  Start a conversation with Gemini
                 </h2>
                 <p className="text-muted-foreground">
-                  Ask me anything! I'm here to help with questions, creative tasks, analysis, and more.
+                  Ask me anything! I'm powered by Google's Gemini AI and ready to help with questions, creative tasks, analysis, and more.
                 </p>
               </div>
             </div>
           ) : (
-            <div className="space-y-0">
+            <div className="space-y-0 p-4">
               {messages.map((message) => (
-                <Message key={message.id} message={message} />
+                <AnimatedMessage key={message.id} message={message} />
               ))}
               {isTyping && <TypingIndicator />}
             </div>
