@@ -362,10 +362,10 @@ const ChatInterface = () => {
                   </svg>
                 </div>
                 <h2 className="text-2xl font-bold bg-gradient-to-r from-primary-glow to-accent bg-clip-text text-transparent">
-                  Start a conversation with Gemini
+                  Start a conversation 
                 </h2>
                 <p className="text-muted-foreground">
-                  Ask me anything! I'm powered by Google's Gemini AI and ready to help with questions, creative tasks, analysis, and more.
+                  Ask me anything! I'm  ready to help with questions, creative tasks, analysis, and more.
                 </p>
               </div>
             </div>
