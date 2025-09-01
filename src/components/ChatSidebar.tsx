@@ -14,6 +14,7 @@ interface ChatSidebarProps {
   currentSessionId: string | null;
   onSelectSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
+  onEditSession: (sessionId: string, newTitle: string) => void;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -23,6 +24,7 @@ const ChatSidebar = ({
   currentSessionId,
   onSelectSession,
   onDeleteSession,
+  onEditSession,
   isOpen,
   onClose
 }: ChatSidebarProps) => {
@@ -38,6 +40,17 @@ const ChatSidebar = ({
       return "Yesterday";
     } else {
       return date.toLocaleDateString();
+    }
+  };
+
+  const handleEditClick = (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    const session = sessions.find(s => s.id === sessionId);
+    if (session) {
+      const newTitle = prompt("Edit conversation title:", session.title);
+      if (newTitle && newTitle.trim() !== session.title) {
+        onEditSession(sessionId, newTitle.trim());
+      }
     }
   };
 
@@ -105,6 +118,7 @@ const ChatSidebar = ({
                         <Button
                           variant="ghost"
                           size="sm"
+                          onClick={(e) => handleEditClick(e, session.id)}
                           className="h-6 w-6 p-0 hover:bg-muted"
                         >
                           <Edit2 className="h-3 w-3" />
@@ -114,7 +128,9 @@ const ChatSidebar = ({
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            onDeleteSession(session.id);
+                            if (confirm("Delete this conversation?")) {
+                              onDeleteSession(session.id);
+                            }
                           }}
                           className="h-6 w-6 p-0 hover:bg-destructive/20 hover:text-destructive"
                         >

@@ -4,6 +4,7 @@ import ChatSidebar, { ChatSession } from "./ChatSidebar";
 import Message, { MessageData } from "./Message";
 import TypingIndicator from "./TypingIndicator";
 import ChatInput from "./ChatInput";
+import SettingsModal from "./SettingsModal";
 import { cn } from "@/lib/utils";
 
 const ChatInterface = () => {
@@ -12,6 +13,7 @@ const ChatInterface = () => {
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto scroll to bottom
@@ -60,6 +62,41 @@ const ChatInterface = () => {
         createNewChat();
       }
     }
+  };
+
+  const editSession = (sessionId: string, newTitle: string) => {
+    setSessions(prev =>
+      prev.map(s =>
+        s.id === sessionId
+          ? { ...s, title: newTitle }
+          : s
+      )
+    );
+  };
+
+  const clearAllChats = () => {
+    setSessions([]);
+    setMessages([]);
+    setCurrentSessionId(null);
+    createNewChat();
+  };
+
+  const exportChats = () => {
+    const exportData = {
+      sessions,
+      exportDate: new Date().toISOString(),
+      totalSessions: sessions.length
+    };
+    
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    
+    const exportFileDefaultName = `chat-history-${new Date().toISOString().split('T')[0]}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
   };
 
   const sendMessage = async (content: string) => {
@@ -141,14 +178,15 @@ const ChatInterface = () => {
   return (
     <div className="flex h-screen w-full bg-background">
       {/* Sidebar */}
-      <ChatSidebar
-        sessions={sessions}
-        currentSessionId={currentSessionId}
-        onSelectSession={selectSession}
-        onDeleteSession={deleteSession}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
+        <ChatSidebar
+          sessions={sessions}
+          currentSessionId={currentSessionId}
+          onSelectSession={selectSession}
+          onDeleteSession={deleteSession}
+          onEditSession={editSession}
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
 
       {/* Main Chat Area */}
       <div className={cn(
@@ -159,6 +197,7 @@ const ChatInterface = () => {
         <ChatHeader
           onNewChat={createNewChat}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          onOpenSettings={() => setSettingsOpen(true)}
         />
 
         {/* Messages */}
@@ -194,6 +233,14 @@ const ChatInterface = () => {
         <ChatInput
           onSendMessage={sendMessage}
           disabled={isTyping}
+        />
+
+        {/* Settings Modal */}
+        <SettingsModal
+          isOpen={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          onClearAllChats={clearAllChats}
+          onExportChats={exportChats}
         />
       </div>
     </div>

@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 interface ChatHeaderProps {
   onNewChat: () => void;
   onToggleSidebar: () => void;
+  onOpenSettings: () => void;
 }
 
-const ChatHeader = ({ onNewChat, onToggleSidebar }: ChatHeaderProps) => {
+const ChatHeader = ({ onNewChat, onToggleSidebar, onOpenSettings }: ChatHeaderProps) => {
   return (
     <header className="glass border-b border-glass-border sticky top-0 z-50">
       <div className="container mx-auto px-4 py-3">
@@ -50,6 +51,7 @@ const ChatHeader = ({ onNewChat, onToggleSidebar }: ChatHeaderProps) => {
             <Button
               variant="ghost"
               size="sm"
+              onClick={onOpenSettings}
               className="glass-hover"
             >
               <Settings className="h-4 w-4" />
