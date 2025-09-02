@@ -5,6 +5,8 @@ import Message, { MessageData } from "./Message";
 import ProfessionalTypingIndicator from "./ProfessionalTypingIndicator";
 import ChatInput from "./ChatInput";
 import SettingsModal from "./SettingsModal";
+import { ChatFeatures } from "./ChatFeatures";
+import { ChatStats } from "./ChatStats";
 import { cn } from "@/lib/utils";
 
 // Enhanced Message component with professional design and functionality
@@ -140,6 +142,7 @@ const ChatInterface = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   const [conversationHistory, setConversationHistory] = useState<Array<{role: string, parts: [{text: string}]}>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -227,6 +230,36 @@ const ChatInterface = () => {
     linkElement.setAttribute('href', dataUri);
     linkElement.setAttribute('download', exportFileDefaultName);
     linkElement.click();
+  };
+
+  const shareConversation = () => {
+    if (messages.length === 0) return;
+    
+    const conversationText = messages.map(msg => 
+      `${msg.sender === 'user' ? 'You' : 'AI'}: ${msg.content}`
+    ).join('\n\n');
+    
+    if (navigator.share) {
+      navigator.share({
+        title: 'AI Conversation',
+        text: conversationText
+      });
+    } else {
+      navigator.clipboard.writeText(conversationText);
+      // You could add a toast notification here
+    }
+  };
+
+  const searchMessages = (query: string) => {
+    // Simple search implementation - could be enhanced
+    const foundMessage = messages.find(msg => 
+      msg.content.toLowerCase().includes(query.toLowerCase())
+    );
+    
+    if (foundMessage) {
+      // Scroll to message or highlight it
+      console.log('Found message:', foundMessage);
+    }
   };
 
   // Call Gemini API
@@ -411,7 +444,11 @@ const ChatInterface = () => {
           onNewChat={createNewChat}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           onOpenSettings={() => setSettingsOpen(true)}
+          onToggleStats={() => setShowStats(!showStats)}
         />
+
+        {/* Stats */}
+        <ChatStats messages={messages} isVisible={showStats} />
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto custom-scrollbar bg-gradient-subtle">
@@ -480,6 +517,14 @@ const ChatInterface = () => {
           )}
           <div ref={messagesEndRef} />
         </div>
+
+        {/* Chat Features */}
+        <ChatFeatures 
+          messages={messages}
+          onSearchMessage={searchMessages}
+          onShareConversation={shareConversation}
+          onExportChat={exportChats}
+        />
 
         {/* Input */}
         <ChatInput
