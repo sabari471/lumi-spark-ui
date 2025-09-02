@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useEffect } from "react";
+import { cn } from "@/lib/utils";
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
@@ -53,17 +54,17 @@ const ChatInput = ({ onSendMessage, disabled = false }: ChatInputProps) => {
   };
 
   return (
-    <div className="sticky bottom-0 border-t border-glass-border glass backdrop-blur-xl">
-      <div className="container mx-auto px-4 py-4">
-        <form onSubmit={handleSubmit} className="flex gap-3 items-end">
+    <div className="sticky bottom-0 border-t border-border glass backdrop-blur-xl shadow-elegant">
+      <div className="container mx-auto px-6 py-4">
+        <form onSubmit={handleSubmit} className="flex gap-4 items-end">
           <div className="flex-1 relative">
             <Textarea
               value={message + (isListening ? transcript : "")}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={isListening ? "Listening..." : "Type your message here..."}
+              placeholder={isListening ? "🎤 Listening..." : "Type your message here..."}
               disabled={disabled || isListening}
-              className="glass border-glass-border bg-glass/50 backdrop-blur-sm resize-none min-h-[50px] max-h-32 text-foreground placeholder:text-muted-foreground focus:ring-primary focus:border-primary transition-all duration-300"
+              className="professional-input resize-none min-h-[56px] max-h-32 text-foreground placeholder:text-muted-foreground rounded-xl px-4 py-3 border-border bg-background/50 backdrop-blur-sm"
               rows={1}
             />
             {isListening && (
@@ -77,33 +78,40 @@ const ChatInput = ({ onSendMessage, disabled = false }: ChatInputProps) => {
             )}
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             {isSupported && (
               <Button
                 type="button"
-                variant="ghost"
-                size="sm"
+                variant="secondary"
+                size="default"
                 onClick={toggleVoiceInput}
-                className={`glass-hover btn-3d h-12 w-12 p-0 ${isListening ? 'bg-destructive/20 text-destructive' : ''}`}
+                className={cn(
+                  "btn-3d h-12 w-12 p-0 rounded-xl transition-all duration-200",
+                  isListening 
+                    ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-glow' 
+                    : 'btn-secondary hover:shadow-elegant'
+                )}
                 disabled={disabled}
               >
-                {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
               </Button>
             )}
 
             <Button
               type="submit"
               disabled={!message.trim() || disabled || isListening}
-              className="btn-3d h-12 w-12 p-0 bg-gradient-to-r from-primary to-accent hover:from-primary-glow hover:to-accent shadow-glow disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-primary btn-3d h-12 w-12 p-0 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-elegant transition-all duration-200"
             >
-              <Send className="h-4 w-4" />
+              <Send className="h-5 w-5" />
             </Button>
           </div>
         </form>
 
-        <div className="text-center text-xs text-muted-foreground mt-2">
-          Press Enter to send, Shift + Enter for new line
-          {isSupported && ", Click mic for voice input"}
+        <div className="text-center text-xs text-muted-foreground mt-3">
+          <span className="inline-flex items-center space-x-4">
+            <span>Press Enter to send • Shift + Enter for new line</span>
+            {isSupported && <span>• Click mic for voice input</span>}
+          </span>
         </div>
       </div>
     </div>

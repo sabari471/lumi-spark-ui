@@ -2,15 +2,16 @@ import { useState, useEffect, useRef } from "react";
 import ChatHeader from "./ChatHeader";
 import ChatSidebar, { ChatSession } from "./ChatSidebar";
 import Message, { MessageData } from "./Message";
-import TypingIndicator from "./TypingIndicator";
+import ProfessionalTypingIndicator from "./ProfessionalTypingIndicator";
 import ChatInput from "./ChatInput";
 import SettingsModal from "./SettingsModal";
 import { cn } from "@/lib/utils";
 
-// Enhanced Message component with word-by-word reveal
+// Enhanced Message component with professional design and functionality
 const AnimatedMessage = ({ message }: { message: MessageData }) => {
   const [displayedContent, setDisplayedContent] = useState('');
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
+  const [copied, setCopied] = useState(false);
   const words = message.content.split(' ');
 
   useEffect(() => {
@@ -30,7 +31,7 @@ const AnimatedMessage = ({ message }: { message: MessageData }) => {
             return prevIndex;
           }
         });
-      }, 80); // Adjust speed here (lower = faster)
+      }, 60); // Faster animation for better UX
 
       return () => clearInterval(timer);
     } else {
@@ -39,30 +40,91 @@ const AnimatedMessage = ({ message }: { message: MessageData }) => {
     }
   }, [message.content, message.sender, words]);
 
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
+
   return (
     <div className={cn(
-      "flex w-full mb-4",
-      message.sender === "user" ? "justify-end" : "justify-start"
+      "flex w-full mb-6 group",
+      message.sender === "user" ? "justify-end message-enter-user" : "justify-start message-enter"
     )}>
-      <div className={cn(
-        "max-w-[70%] rounded-lg px-4 py-3 shadow-sm",
-        message.sender === "user"
-          ? "bg-primary text-primary-foreground ml-4"
-          : "bg-muted mr-4"
-      )}>
-        <div className="whitespace-pre-wrap break-words">
-          {displayedContent}
-          {message.sender === 'bot' && currentWordIndex < words.length && (
-            <span className="inline-block w-2 h-5 bg-current ml-1 animate-pulse" />
-          )}
+      {/* Bot Avatar */}
+      {message.sender === "bot" && (
+        <div className="flex-shrink-0 mr-3 mt-1">
+          <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center shadow-glow">
+            <svg className="w-4 h-4 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+          </div>
         </div>
+      )}
+
+      <div className={cn(
+        "relative max-w-[75%] group",
+        message.sender === "user" ? "order-first" : ""
+      )}>
         <div className={cn(
-          "text-xs mt-1 opacity-70",
-          message.sender === "user" ? "text-right" : "text-left"
+          "message-bubble px-4 py-3 relative",
+          message.sender === "user"
+            ? "message-bubble-user ml-auto"
+            : "message-bubble-bot"
         )}>
-          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          <div className="whitespace-pre-wrap break-words leading-relaxed">
+            {displayedContent}
+            {message.sender === 'bot' && currentWordIndex < words.length && (
+              <span className="inline-block w-0.5 h-5 bg-current ml-1 animate-pulse" />
+            )}
+          </div>
+          
+          <div className={cn(
+            "flex items-center justify-between mt-2 text-xs opacity-60",
+            message.sender === "user" ? "flex-row-reverse" : ""
+          )}>
+            <span>
+              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+            
+            {message.sender === "bot" && (
+              <button
+                onClick={handleCopy}
+                className={cn(
+                  "ml-2 p-1 rounded opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-muted",
+                  copied && "opacity-100"
+                )}
+                title={copied ? "Copied!" : "Copy message"}
+              >
+                {copied ? (
+                  <svg className="w-3 h-3 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                )}
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* User Avatar */}
+      {message.sender === "user" && (
+        <div className="flex-shrink-0 ml-3 mt-1">
+          <div className="w-8 h-8 rounded-full bg-gradient-accent flex items-center justify-center shadow-glow">
+            <svg className="w-4 h-4 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -352,29 +414,68 @@ const ChatInterface = () => {
         />
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="flex-1 overflow-y-auto custom-scrollbar bg-gradient-subtle">
           {messages.length === 0 ? (
             <div className="flex-1 flex items-center justify-center p-8">
-              <div className="text-center space-y-4 max-w-md">
-                <div className="w-16 h-16 mx-auto rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow">
-                  <svg className="w-8 h-8 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
+              <div className="text-center space-y-6 max-w-lg">
+                <div className="relative">
+                  <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-hero flex items-center justify-center shadow-elegant">
+                    <svg className="w-10 h-10 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                  </div>
+                  <div className="absolute -inset-4">
+                    <div className="w-full h-full rounded-2xl bg-gradient-hero opacity-20 blur-xl"></div>
+                  </div>
                 </div>
-                <h2 className="text-2xl font-bold bg-gradient-to-r from-primary-glow to-accent bg-clip-text text-transparent">
-                  Start a conversation 
-                </h2>
-                <p className="text-muted-foreground">
-                  Ask me anything! I'm  ready to help with questions, creative tasks, analysis, and more.
-                </p>
+                
+                <div className="space-y-3">
+                  <h2 className="text-3xl font-bold bg-gradient-hero bg-clip-text text-transparent">
+                    AI Assistant Ready
+                  </h2>
+                  <p className="text-muted-foreground text-lg leading-relaxed">
+                    I'm here to help with questions, creative tasks, problem-solving, and more. 
+                    Start our conversation below!
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-8">
+                  <div className="glass-hover p-4 rounded-xl cursor-pointer group">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                        <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                      </div>
+                      <div className="text-left">
+                        <h3 className="font-semibold text-sm">Ask Questions</h3>
+                        <p className="text-xs text-muted-foreground">Get answers and explanations</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="glass-hover p-4 rounded-xl cursor-pointer group">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition-colors">
+                        <svg className="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </div>
+                      <div className="text-left">
+                        <h3 className="font-semibold text-sm">Creative Tasks</h3>
+                        <p className="text-xs text-muted-foreground">Writing and brainstorming</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
-            <div className="space-y-0 p-4">
+            <div className="space-y-0 p-6">
               {messages.map((message) => (
                 <AnimatedMessage key={message.id} message={message} />
               ))}
-              {isTyping && <TypingIndicator />}
+              {isTyping && <ProfessionalTypingIndicator />}
             </div>
           )}
           <div ref={messagesEndRef} />
